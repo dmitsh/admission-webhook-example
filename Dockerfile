@@ -1,12 +1,15 @@
-FROM golang:1.15-buster as builder
+FROM golang:1.15 as builder
 
 ADD . /build
 WORKDIR /build
 
-RUN go get ./...
-RUN make
+ENV CGO_ENABLED=0
 
-FROM alpine
+RUN GO111MODULE=on go get ./...
+RUN go build -a -ldflags '-extldflags "-static"' ./cmd/initc
+RUN go build -a -ldflags '-extldflags "-static"' ./cmd/webhook
+
+FROM scratch
 
 COPY --from=builder /build/initc   /usr/local/bin/initc
 COPY --from=builder /build/webhook /usr/local/bin/webhook

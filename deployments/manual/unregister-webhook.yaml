@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: webhook-unregister
+  namespace: webhook-demo
+spec:
+  serviceAccountName: wh-api
+  securityContext:
+  imagePullSecrets:
+  containers:
+  - name: webhook-init
+    image: docker.io/dmitsh/webhook-demo:0.1
+    imagePullPolicy: IfNotPresent
+    command: ['/usr/local/bin/initc']
+    args: ['-action', 'uninstall']
+    env:
+    - name: MUTATING_CONFIG
+      value: webhook-demo-config
+  restartPolicy: Never
+  terminationGracePeriodSeconds: 0

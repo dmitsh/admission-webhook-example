@@ -19,13 +19,13 @@ spec:
       initContainers:
       - name: webhook-init
         image: docker.io/dmitsh/webhook-demo:0.1
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         command: ['/usr/local/bin/initc']
         volumeMounts:
         - name: webhook-certs
           mountPath: /etc/webhook/certs
         env:
-        - name: MUTATE_CONFIG
+        - name: MUTATING_CONFIG
           value: webhook-demo-config
         - name: WEBHOOK_SERVICE
           value: webhook-demo-service
@@ -36,7 +36,7 @@ spec:
       containers:
       - name: server
         image: docker.io/dmitsh/webhook-demo:0.1
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         command: ['/usr/local/bin/webhook']
         ports:
         - name: webhook-api

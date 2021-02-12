@@ -63,3 +63,12 @@ func createMutationConfig(ctx context.Context, caCert []byte) error {
 	}
 	return nil
 }
+
+func deleteMutationConfig(ctx context.Context) error {
+	config := ctrl.GetConfigOrDie()
+	kubeClient, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+	return kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Delete(ctx, mutationCfgName, v1.DeleteOptions{})
+}

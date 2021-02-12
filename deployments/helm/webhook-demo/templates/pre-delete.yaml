@@ -1,0 +1,25 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "webhook-demo.fullname" . }}-pre-delete
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      name: webhook-unregister
+    spec:
+      serviceAccountName: {{ include "webhook-demo.serviceAccountName" . }}
+      containers:
+      - name: webhook-init
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ['/usr/local/bin/initc']
+        args: ['-action', 'uninstall']
+        env:
+        - name: MUTATING_CONFIG
+          value: "{{ include "webhook-demo.fullname" . }}-mutating-config"
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 0

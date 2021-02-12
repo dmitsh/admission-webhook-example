@@ -32,7 +32,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ['/usr/local/bin/initc']
           env:
-            - name: MUTATE_CONFIG
+            - name: MUTATING_CONFIG
               value: "{{ include "webhook-demo.fullname" . }}-mutating-config"
             - name: WEBHOOK_SERVICE
               value: {{ include "webhook-demo.fullname" . }}
