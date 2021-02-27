@@ -20,9 +20,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 
+	log "github.com/sirupsen/logrus"
 	"k8s.io/api/admission/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,7 +46,7 @@ func applySecurityDefaults(req *v1beta1.AdmissionRequest) ([]patchOperation, err
 	// However, if (for whatever reason) this gets invoked on an object of a different kind, issue a log message but
 	// let the object request pass through otherwise.
 	if req.Resource != podResource {
-		log.Printf("expect resource to be %s", podResource)
+		log.Printf("unexpected resource '%s', expected '%s'", req.Resource.String(), podResource.String())
 		return nil, nil
 	}
 

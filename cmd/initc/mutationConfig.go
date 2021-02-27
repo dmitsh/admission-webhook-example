@@ -20,6 +20,7 @@ func createMutationConfig(ctx context.Context, caCert []byte) error {
 	path := "/mutate"
 	fail := admissionregistrationv1.Fail
 	none := admissionregistrationv1.SideEffectClassNone
+	scope := admissionregistrationv1.AllScopes
 
 	mutateconfig := &admissionregistrationv1.MutatingWebhookConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
@@ -35,14 +36,17 @@ func createMutationConfig(ctx context.Context, caCert []byte) error {
 					Path:      &path,
 				},
 			},
-			Rules: []admissionregistrationv1.RuleWithOperations{{Operations: []admissionregistrationv1.OperationType{
-				admissionregistrationv1.Create},
-				Rule: admissionregistrationv1.Rule{
-					APIGroups:   []string{"apps"},
-					APIVersions: []string{"v1"},
-					Resources:   []string{"deployments", "pods"},
+			Rules: []admissionregistrationv1.RuleWithOperations{
+				{
+					Operations: []admissionregistrationv1.OperationType{admissionregistrationv1.Create},
+					Rule: admissionregistrationv1.Rule{
+						APIGroups:   []string{""},
+						APIVersions: []string{"v1"},
+						Resources:   []string{"pods"},
+						Scope:       &scope,
+					},
 				},
-			}},
+			},
 			NamespaceSelector: &metav1.LabelSelector{
 				MatchExpressions: []metav1.LabelSelectorRequirement{
 					{
