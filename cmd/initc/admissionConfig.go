@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 
+	log "github.com/sirupsen/logrus"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -21,13 +23,14 @@ func createMutationConfig(ctx context.Context, caCert []byte) error {
 	fail := admissionregistrationv1.Fail
 	none := admissionregistrationv1.SideEffectClassNone
 	scope := admissionregistrationv1.AllScopes
+	timeout := int32(5)
 
 	mutateconfig := &admissionregistrationv1.MutatingWebhookConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: mutationCfgName,
 		},
 		Webhooks: []admissionregistrationv1.MutatingWebhook{{
-			Name: webhookService + "." + webhookNamespace + ".svc",
+			Name: mutationCfgName + "." + webhookNamespace + ".svc",
 			ClientConfig: admissionregistrationv1.WebhookClientConfig{
 				CABundle: caCert,
 				Service: &admissionregistrationv1.ServiceReference{
@@ -38,7 +41,10 @@ func createMutationConfig(ctx context.Context, caCert []byte) error {
 			},
 			Rules: []admissionregistrationv1.RuleWithOperations{
 				{
-					Operations: []admissionregistrationv1.OperationType{admissionregistrationv1.Create},
+					Operations: []admissionregistrationv1.OperationType{
+						admissionregistrationv1.Create,
+						admissionregistrationv1.Update,
+					},
 					Rule: admissionregistrationv1.Rule{
 						APIGroups:   []string{""},
 						APIVersions: []string{"v1"},
@@ -58,20 +64,40 @@ func createMutationConfig(ctx context.Context, caCert []byte) error {
 			},
 			FailurePolicy:           &fail,
 			SideEffects:             &none,
+			TimeoutSeconds:          &timeout,
 			AdmissionReviewVersions: []string{"v1beta1", "v1"},
 		}},
 	}
 
-	if _, err := kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Create(ctx, mutateconfig, v1.CreateOptions{}); err != nil {
-		return err
+	cfg, err := kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(ctx, mutationCfgName, v1.GetOptions{})
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+		log.Infof("createMutationConfig: creating config '%s'", mutationCfgName)
+		_, err = kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Create(ctx, mutateconfig, v1.CreateOptions{})
+	} else {
+		for i := range cfg.Webhooks {
+			cfg.Webhooks[i].ClientConfig.CABundle = caCert
+		}
+		log.Infof("createMutationConfig: updating config '%s'", mutationCfgName)
+		_, err = kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Update(ctx, cfg, v1.UpdateOptions{})
 	}
-	return nil
+	return err
 }
 
 func deleteMutationConfig(ctx context.Context) error {
 	config := ctrl.GetConfigOrDie()
 	kubeClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
+		return err
+	}
+	_, err = kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(ctx, mutationCfgName, v1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.Infof("deleteMutationConfig: config '%s' does not exist", mutationCfgName)
+			return nil
+		}
 		return err
 	}
 	return kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Delete(ctx, mutationCfgName, v1.DeleteOptions{})

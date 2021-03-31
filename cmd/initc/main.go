@@ -26,12 +26,15 @@ func main() {
 	flag.StringVar(&keyPath, "tls.key.path", "/etc/webhook/certs/tls.key", "TLS private key filepath")
 	flag.Parse()
 
+	ctx := context.Background()
+	log.Infof("admission config action: %s", action)
+
 	var err error
 	switch action {
 	case "install":
-		err = install(certPath, keyPath)
+		err = install(ctx, certPath, keyPath)
 	case "uninstall":
-		err = uninstall()
+		err = uninstall(ctx)
 	default:
 		err = fmt.Errorf("unsupported action %q", action)
 	}
@@ -40,20 +43,20 @@ func main() {
 	}
 }
 
-func install(certPath, keyPath string) error {
+func install(ctx context.Context, certPath, keyPath string) error {
 	caBundle, err := createCert(certPath, keyPath)
 	if err != nil {
 		return err
 	}
-	if err = createMutationConfig(context.Background(), caBundle); err != nil {
+	if err = createMutationConfig(ctx, caBundle); err != nil {
 		return err
 	}
 	fmt.Printf("Successfully installed mutating webhook %q\n", mutationCfgName)
 	return nil
 }
 
-func uninstall() error {
-	if err := deleteMutationConfig(context.Background()); err != nil {
+func uninstall(ctx context.Context) error {
+	if err := deleteMutationConfig(ctx); err != nil {
 		return err
 	}
 	fmt.Printf("Successfully uninstalled mutating webhook %q\n", mutationCfgName)

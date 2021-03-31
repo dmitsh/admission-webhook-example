@@ -46,7 +46,7 @@ func applySecurityDefaults(req *v1beta1.AdmissionRequest) ([]patchOperation, err
 	// However, if (for whatever reason) this gets invoked on an object of a different kind, issue a log message but
 	// let the object request pass through otherwise.
 	if req.Resource != podResource {
-		log.Printf("unexpected resource '%s', expected '%s'", req.Resource.String(), podResource.String())
+		log.Warnf("unexpected resource '%s', expected '%s'", req.Resource.String(), podResource.String())
 		return nil, nil
 	}
 
@@ -97,10 +97,12 @@ func main() {
 	flag.StringVar(&keyPath, "tls.key.path", "/etc/webhook/certs/tls.key", "TLS private key filepath")
 	flag.Parse()
 
-	log.Printf("Starting webhook server: [crt: %s] [key: %s]", certPath, keyPath)
+	log.Infof("Starting webhook server: [crt: %s] [key: %s]", certPath, keyPath)
 
 	mux := http.NewServeMux()
 	mux.Handle("/mutate", admitFuncHandler(applySecurityDefaults))
+	mux.HandleFunc("/healthz", livenessProbe)
+
 	server := &http.Server{
 		// We listen on port 8443 such that we do not need root privileges or extra capabilities for this server.
 		// The Service object will take care of mapping this port to the HTTPS port 443.
@@ -108,4 +110,10 @@ func main() {
 		Handler: mux,
 	}
 	log.Fatal(server.ListenAndServeTLS(certPath, keyPath))
+}
+
+func livenessProbe(w http.ResponseWriter, r *http.Request) {
+	log.Debug("livenessProbe")
+	w.WriteHeader(200)
+	w.Write([]byte("ok"))
 }

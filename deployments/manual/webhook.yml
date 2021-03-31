@@ -41,6 +41,13 @@ spec:
         ports:
         - name: webhook-api
           containerPort: 8443
+        livenessProbe:
+          httpGet:
+            scheme: HTTPS
+            path: /healthz
+            port: webhook-api
+          initialDelaySeconds: 15
+          periodSeconds: 10
         volumeMounts:
         - name: webhook-certs
           mountPath: /etc/webhook/certs
