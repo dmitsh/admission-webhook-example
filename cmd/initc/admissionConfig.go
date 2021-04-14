@@ -12,31 +12,36 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func createMutationConfig(ctx context.Context, caCert []byte) error {
+var (
+	mutatePath = "/mutate"
+	equivalent = admissionregistrationv1.Equivalent
+	fail       = admissionregistrationv1.Fail
+	none       = admissionregistrationv1.SideEffectClassNone
+	scope      = admissionregistrationv1.AllScopes
+	timeout    = int32(5)
+)
+
+func createMutationConfig(ctx context.Context, labels map[string]string, caCert []byte) error {
 	config := ctrl.GetConfigOrDie()
 	kubeClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return err
 	}
 
-	path := "/mutate"
-	fail := admissionregistrationv1.Fail
-	none := admissionregistrationv1.SideEffectClassNone
-	scope := admissionregistrationv1.AllScopes
-	timeout := int32(5)
-
 	mutateconfig := &admissionregistrationv1.MutatingWebhookConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: mutationCfgName,
+			Name:   mutationCfgName,
+			Labels: labels,
 		},
 		Webhooks: []admissionregistrationv1.MutatingWebhook{{
-			Name: mutationCfgName + "." + webhookNamespace + ".svc",
+			Name:        mutationCfgName + "." + webhookNamespace + ".svc",
+			MatchPolicy: &equivalent,
 			ClientConfig: admissionregistrationv1.WebhookClientConfig{
 				CABundle: caCert,
 				Service: &admissionregistrationv1.ServiceReference{
 					Name:      webhookService,
 					Namespace: webhookNamespace,
-					Path:      &path,
+					Path:      &mutatePath,
 				},
 			},
 			Rules: []admissionregistrationv1.RuleWithOperations{
@@ -44,6 +49,7 @@ func createMutationConfig(ctx context.Context, caCert []byte) error {
 					Operations: []admissionregistrationv1.OperationType{
 						admissionregistrationv1.Create,
 						admissionregistrationv1.Update,
+						admissionregistrationv1.Delete,
 					},
 					Rule: admissionregistrationv1.Rule{
 						APIGroups:   []string{""},
